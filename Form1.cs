@@ -1,5 +1,6 @@
-﻿using IronPdf.Forms;
+﻿using iTextSharp.text;
 using iTextSharp.text.pdf;
+using System.Diagnostics;
 using System.DirectoryServices.ActiveDirectory;
 using System.IO;
 using System.Runtime;
@@ -11,10 +12,13 @@ namespace Pokemon5ePdfFiller
 	{
 		public readonly string SaveFileName = "Pokemon5ePdfFiller.txt";
 		public readonly string PokemonPdfOriginal = $"{Application.ExecutablePath}../../../../../assets/Pokemon_5e_Pokemon_Sheet.pdf";
+		public readonly string PokemonPdfModified = $"{Application.ExecutablePath}../../../../../assets/Pokemon_6_Pokemon_Sheet.pdf";
 		public readonly string TrainerPdfOriginal = $"{Application.ExecutablePath}../../../../../assets/Pokemon_5e_Sheet.pdf";
 
-		public readonly string PokemonPdfNew = $"{Application.ExecutablePath}../../../../../assets/PPokemonCopy.pdf";
-		public readonly string TrainerPdfNew = $"{Application.ExecutablePath}../../../../../assets/PTrainerCopy.pdf";
+		public readonly string PokemonPdfNew = $"{Application.ExecutablePath}../../../../../exports/Pokemon_5e_Pokemon_Sheet.pdf";
+		public readonly string TrainerPdfNew = $"{Application.ExecutablePath}../../../../../exports/Pokemon_5e_Sheet.pdf";
+
+		public static bool Flatten;
 
 		public Pokemon5ePDFFiller()
 		{
@@ -29,6 +33,10 @@ namespace Pokemon5ePdfFiller
 				string BrowsePath = Encoding.UTF8.GetString(SaveBuffer);
 				textBox1.Text = BrowsePath;
 				SaveData.Close();
+			}
+			if(!Debugger.IsAttached) 
+			{
+				TemplateButton.Visible = false;
 			}
 		}
 
@@ -59,98 +67,37 @@ namespace Pokemon5ePdfFiller
 			}
 
 			List<Pokemon> Party = PokemonUtils.DeserializeJsonPokemon(textBox1.Text);
-			
-			label1.Text = "Exporting...";
+
+			label1.Text = "Exporting Trainer Data";
 			label1.Refresh();
 
 			PdfUtils.PopulateTrainerFields();
 			PdfUtils.PopulatePokemonFields();
 
-			//using (PdfDocument TrainerDoc = PdfDocument.FromFile(TrainerPdfOriginal))
-			//{
-			//	if (TrainerDoc == null)
-			//	{
-			//		MessageBox.Show("Something went wrong with the pdf docs");
-			//		return;
-			//	}
-
-			//	PdfForm TrainerForm = TrainerDoc.Form;
-			//	PdfUtils.RenameTrainerFields(ref TrainerForm);
-
-			//	for (int PartyIndex = 1; PartyIndex <= Party.Count; PartyIndex++)
-			//	{
-			//		Pokemon pokemon = Party[PartyIndex - 1];
-
-			//		TrainerForm.GetFieldByName($"Trainer-Pokemon-Name-{PartyIndex}").Value = pokemon.StringMap["name"];
-			//		TrainerForm.GetFieldByName($"Trainer-Pokemon-Level-{PartyIndex}").Value = pokemon.StringMap["level"];
-			//		TrainerForm.GetFieldByName($"Trainer-Pokemon-Current-hp-{PartyIndex}").Value = pokemon.GetCurrentHpString();
-			//		TrainerForm.GetFieldByName($"Trainer-Pokemon-Max-hp-{PartyIndex}").Value = pokemon.Hp.Max_hp.ToString();
-			//	}
-			//	TrainerDoc.SaveAs(Application.ExecutablePath + "../../../../../assets/PTrainerCopy.pdf");
-			//	TrainerDoc.Dispose();
-			//}
-			using (FileStream existingFileStream = new FileStream(TrainerPdfOriginal, FileMode.Open))
-			using (FileStream newFileStream = new FileStream(TrainerPdfNew, FileMode.Create))
+			using (FileStream existingTrainerFileStream = new FileStream(TrainerPdfOriginal, FileMode.Open))
+			using (FileStream newTrainerFileStream = new FileStream(TrainerPdfNew, FileMode.Create))
 			{
-				// Open existing PDF
-				var pdfReader = new PdfReader(existingFileStream);
+				var TrainerReader = new PdfReader(existingTrainerFileStream);
+				var TrainerStamper = new PdfStamper(TrainerReader, newTrainerFileStream);
 
-				// PdfStamper, which will create
-				var stamper = new PdfStamper(pdfReader, newFileStream);
-				
-				AcroFields TrainerForm = stamper.AcroFields;
-
-				stamper.FormFlattening = true;
 				for (int PartyIndex = 1; PartyIndex <= Party.Count; PartyIndex++)
 				{
 					Pokemon pokemon = Party[PartyIndex - 1];
 
-					TrainerForm.SetField(PdfUtils.GetTrainerField($"Trainer-Pokemon-name-{PartyIndex}"), pokemon.StringMap["name"]);
-					TrainerForm.SetField(PdfUtils.GetTrainerField($"Trainer-Pokemon-level-{PartyIndex}"), pokemon.StringMap["level"]);
-					TrainerForm.SetField(PdfUtils.GetTrainerField($"Trainer-Pokemon-Current-hp-{PartyIndex}"), pokemon.GetCurrentHpString());
-					TrainerForm.SetField(PdfUtils.GetTrainerField($"Trainer-Pokemon-Max-hp-{PartyIndex}"), pokemon.Hp.Max_hp.ToString());
-					stamper.PartialFormFlattening(PdfUtils.GetTrainerField($"Trainer-Pokemon-name-{PartyIndex}"));
-					stamper.PartialFormFlattening(PdfUtils.GetTrainerField($"Trainer-Pokemon-level-{PartyIndex}"));
-					stamper.PartialFormFlattening(PdfUtils.GetTrainerField($"Trainer-Pokemon-Current-hp-{PartyIndex}"));
-					stamper.PartialFormFlattening(PdfUtils.GetTrainerField($"Trainer-Pokemon-Max-hp-{PartyIndex}"));
+					TrainerStamper.SetField(PdfUtils.GetTrainerField($"Trainer-Pokemon-name-{PartyIndex}"), pokemon.StringMap["name"]);
+					TrainerStamper.SetField(PdfUtils.GetTrainerField($"Trainer-Pokemon-level-{PartyIndex}"), pokemon.StringMap["level"]);
+					TrainerStamper.SetField(PdfUtils.GetTrainerField($"Trainer-Pokemon-Current-hp-{PartyIndex}"), pokemon.GetCurrentHpString());
+					TrainerStamper.SetField(PdfUtils.GetTrainerField($"Trainer-Pokemon-Max-hp-{PartyIndex}"), pokemon.Hp.Max_hp.ToString());
 				}
 
-				// You can also specify fields to be flattened, which
-				// leaves the rest of the form still be editable/usable
-
-				stamper.Dispose();
-				pdfReader.Dispose();
+				TrainerStamper.Dispose();
+				TrainerReader.Dispose();
 			}
 
-			GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
-			System.GC.Collect(0, GCCollectionMode.Forced, true, true);
-			System.GC.WaitForPendingFinalizers();
-			System.GC.Collect(0, GCCollectionMode.Forced, true, true);
-
-			GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
-			System.GC.Collect(1, GCCollectionMode.Forced, true, true);
-			System.GC.WaitForPendingFinalizers();
-			System.GC.Collect(1, GCCollectionMode.Forced, true, true);
-
-			GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
-			System.GC.Collect(2, GCCollectionMode.Forced, true, true);
-			System.GC.WaitForPendingFinalizers();
-			System.GC.Collect(2, GCCollectionMode.Forced, true, true);
-
-
-			IronPdf.PdfDocument[] PokemonDocs = new IronPdf.PdfDocument[3];
-			using (IronPdf.PdfDocument PokemonDocOriginal = IronPdf.PdfDocument.FromFile(PokemonPdfOriginal))
-			{
-				if (PokemonDocOriginal == null)
-				{
-					MessageBox.Show("Something went wrong with the pdf docs");
-					return;
-				}
-
-				PokemonDocs[0] = new IronPdf.PdfDocument(PokemonPdfOriginal);
-				PokemonDocs[1] = new IronPdf.PdfDocument(PokemonPdfOriginal);
-				PokemonDocs[2] = new IronPdf.PdfDocument(PokemonPdfOriginal);
-			}
+			FileStream existingFileStream = new FileStream(PokemonPdfModified, FileMode.Open);
+			FileStream newFileStream = new FileStream(PokemonPdfNew, FileMode.Create);
+			var pdfReader = new PdfReader(existingFileStream);
+			var stamper = new PdfStamper(pdfReader, newFileStream);
 
 			for (int PartyIndex = 1; PartyIndex <= Party.Count; PartyIndex++)
 			{
@@ -159,20 +106,16 @@ namespace Pokemon5ePdfFiller
 
 				Pokemon pokemon = Party[PartyIndex - 1];
 
-				int PokemonIndex = (PartyIndex % 2) + 1;
-				int PokeDocIndex = (int)MathF.Ceiling((float)PartyIndex / 2.0f) - 1;
-
 				//fill the easy strings and string lists
 				foreach (KeyValuePair<string, string> kvp in pokemon.StringMap)
 				{
-					PokemonDocs[PokeDocIndex].Form.GetFieldByName($"Pokemon{PokemonIndex}-{kvp.Key}").Value = kvp.Value;
+					stamper.SetField($"Pokemon{PartyIndex}-{kvp.Key}", kvp.Value);
 				}
 				foreach (KeyValuePair<string, List<string>> kvp in pokemon.StringListMap)
 				{
 					string ConcatList = string.Join(", ", kvp.Value);
-					PokemonDocs[PokeDocIndex].Form.GetFieldByName($"Pokemon{PokemonIndex}-{kvp.Key}").Value = ConcatList;
+					stamper.SetField($"Pokemon{PartyIndex}-{kvp.Key}", ConcatList);
 				}
-
 				string GenderSymbol = "";
 				switch (pokemon.ExtraStringMap["gender"])
 				{
@@ -186,19 +129,21 @@ namespace Pokemon5ePdfFiller
 						break;
 				}
 
-				PokemonDocs[PokeDocIndex].Form.GetFieldByName($"Pokemon{PokemonIndex}-Max-hp").Value = pokemon.Hp.Max_hp;
-				PokemonDocs[PokeDocIndex].Form.GetFieldByName($"Pokemon{PokemonIndex}-Current-hp").Value = pokemon.GetCurrentHpString();
-				PokemonDocs[PokeDocIndex].Form.GetFieldByName($"Pokemon{PokemonIndex}-name").Value += pokemon.ExtraStringMap.ContainsKey("nickname") ? $" / {pokemon.ExtraStringMap["nickname"]}" : "";
-				PokemonDocs[PokeDocIndex].Form.GetFieldByName($"Pokemon{PokemonIndex}-name").Value += GenderSymbol;
-				PokemonDocs[PokeDocIndex].Form.GetFieldByName($"Pokemon{PokemonIndex}-type1").Value = pokemon.ExtraStringListMap["type"][0];
-				PokemonDocs[PokeDocIndex].Form.GetFieldByName($"Pokemon{PokemonIndex}-type2").Value = pokemon.ExtraStringListMap["type"].Count > 1 ? pokemon.ExtraStringListMap["type"][1] : " ";
+				string Nickname = pokemon.ExtraStringMap.ContainsKey("nickname") ? $" / {pokemon.ExtraStringMap["nickname"]}" : "";
+				string NameString = $"{pokemon.StringMap["name"]}{Nickname} {GenderSymbol}";
 
-				PokemonDocs[PokeDocIndex].Form.GetFieldByName($"Pokemon{PokemonIndex}-Str").Value = pokemon.Attributes.STR;
-				PokemonDocs[PokeDocIndex].Form.GetFieldByName($"Pokemon{PokemonIndex}-Dex").Value = pokemon.Attributes.DEX;
-				PokemonDocs[PokeDocIndex].Form.GetFieldByName($"Pokemon{PokemonIndex}-Con").Value = pokemon.Attributes.CON;
-				PokemonDocs[PokeDocIndex].Form.GetFieldByName($"Pokemon{PokemonIndex}-Int").Value = pokemon.Attributes.INT;
-				PokemonDocs[PokeDocIndex].Form.GetFieldByName($"Pokemon{PokemonIndex}-Wis").Value = pokemon.Attributes.WIS;
-				PokemonDocs[PokeDocIndex].Form.GetFieldByName($"Pokemon{PokemonIndex}-Cha").Value = pokemon.Attributes.CHA;
+				stamper.SetField($"Pokemon{PartyIndex}-name", NameString);
+				stamper.SetField($"Pokemon{PartyIndex}-Max-hp", pokemon.Hp.Max_hp);
+				stamper.SetField($"Pokemon{PartyIndex}-Current-hp", pokemon.GetCurrentHpString());
+				stamper.SetField($"Pokemon{PartyIndex}-type1", pokemon.ExtraStringListMap["type"][0]);
+				stamper.SetField($"Pokemon{PartyIndex}-type2", pokemon.ExtraStringListMap["type"].Count > 1 ? pokemon.ExtraStringListMap["type"][1] : " ");
+
+				stamper.SetField($"Pokemon{PartyIndex}-Str", pokemon.Attributes.STR);
+				stamper.SetField($"Pokemon{PartyIndex}-Dex", pokemon.Attributes.DEX);
+				stamper.SetField($"Pokemon{PartyIndex}-Con", pokemon.Attributes.CON);
+				stamper.SetField($"Pokemon{PartyIndex}-Int", pokemon.Attributes.INT);
+				stamper.SetField($"Pokemon{PartyIndex}-Wis", pokemon.Attributes.WIS);
+				stamper.SetField($"Pokemon{PartyIndex}-Cha", pokemon.Attributes.CHA);
 
 				foreach (string item in pokemon.ExtraStringListMap["save_profs"])
 				{
@@ -206,29 +151,29 @@ namespace Pokemon5ePdfFiller
 					{
 						break;
 					}
-					PokemonDocs[PokeDocIndex].Form.GetFieldByName($"Pokemon{PokemonIndex}-{item}-Prof").Value = "On";
+					stamper.SetField($"Pokemon{PartyIndex}-{item}-Prof", "Yes");
 				}
 
 				for (int MoveIndex = 0; MoveIndex < pokemon.Moves.Count; MoveIndex++)
 				{
-
 					string ConcatList = string.Join("/", pokemon.Moves[MoveIndex].Power);
-					PokemonDocs[PokeDocIndex].Form.GetFieldByName($"Pokemon{PokemonIndex}-Move-{MoveIndex + 1}-name").Value = pokemon.Moves[MoveIndex].Name;
-					PokemonDocs[PokeDocIndex].Form.GetFieldByName($"Pokemon{PokemonIndex}-Move-{MoveIndex + 1}-name").Value += $" / {pokemon.Moves[MoveIndex].Time}";
-					PokemonDocs[PokeDocIndex].Form.GetFieldByName($"Pokemon{PokemonIndex}-Move-{MoveIndex + 1}-type").Value = pokemon.Moves[MoveIndex].Type;
-					PokemonDocs[PokeDocIndex].Form.GetFieldByName($"Pokemon{PokemonIndex}-Move-{MoveIndex + 1}-range").Value = pokemon.Moves[MoveIndex].Range;
-					PokemonDocs[PokeDocIndex].Form.GetFieldByName($"Pokemon{PokemonIndex}-Move-{MoveIndex + 1}-damage").Value = pokemon.Moves[MoveIndex].Damage;
-					PokemonDocs[PokeDocIndex].Form.GetFieldByName($"Pokemon{PokemonIndex}-Move-{MoveIndex + 1}-power").Value = ConcatList;
+					string MoveName = $"{pokemon.Moves[MoveIndex].Name} / {pokemon.Moves[MoveIndex].Time}";
 
-					PokemonDocs[PokeDocIndex].Form.GetFieldByName($"Pokemon{PokemonIndex}-Move-{MoveIndex + 1}-PP-Current").Value = pokemon.Moves[MoveIndex].pp.Current_PP;
-					PokemonDocs[PokeDocIndex].Form.GetFieldByName($"Pokemon{PokemonIndex}-Move-{MoveIndex + 1}-PP-Max").Value = pokemon.Moves[MoveIndex].pp.Max_PP;
+					stamper.SetField($"Pokemon{PartyIndex}-Move-{MoveIndex + 1}-name", MoveName);
+					stamper.SetField($"Pokemon{PartyIndex}-Move-{MoveIndex + 1}-type", pokemon.Moves[MoveIndex].Type);
+					stamper.SetField($"Pokemon{PartyIndex}-Move-{MoveIndex + 1}-range", pokemon.Moves[MoveIndex].Range);
+					stamper.SetField($"Pokemon{PartyIndex}-Move-{MoveIndex + 1}-damage", pokemon.Moves[MoveIndex].Damage);
+					stamper.SetField($"Pokemon{PartyIndex}-Move-{MoveIndex + 1}-power", ConcatList);
+					stamper.SetField($"Pokemon{PartyIndex}-Move-{MoveIndex + 1}-notes", pokemon.Moves[MoveIndex].Description);
 
-					PokemonDocs[PokeDocIndex].Form.GetFieldByName($"Pokemon{PokemonIndex}-Move-{MoveIndex + 1}-notes").Value = pokemon.Moves[MoveIndex].Description;
+					stamper.SetField($"Pokemon{PartyIndex}-Move-{MoveIndex + 1}-PP-Current", pokemon.Moves[MoveIndex].pp.Current_PP);
+					stamper.SetField($"Pokemon{PartyIndex}-Move-{MoveIndex + 1}-PP-Max", pokemon.Moves[MoveIndex].pp.Max_PP);
+
 				}
 
-				PokemonDocs[PokeDocIndex].Form.GetFieldByName($"Pokemon{PokemonIndex}-Walk").Value = $"{pokemon.Speeds.Walking} ft";
-				PokemonDocs[PokeDocIndex].Form.GetFieldByName($"Pokemon{PokemonIndex}-Swim").Value = $"{pokemon.Speeds.Swimming} ft";
-				PokemonDocs[PokeDocIndex].Form.GetFieldByName($"Pokemon{PokemonIndex}-Fly").Value = $"{pokemon.Speeds.Flying} ft";
+				stamper.SetField($"Pokemon{PartyIndex}-Walk", $"{pokemon.Speeds.Walking} ft");
+				stamper.SetField($"Pokemon{PartyIndex}-Swim", $"{pokemon.Speeds.Swimming} ft");
+				stamper.SetField($"Pokemon{PartyIndex}-Fly", $"{pokemon.Speeds.Flying} ft");
 
 				string OtherNotes = "";
 				foreach (Ability ability in pokemon.Abilities)
@@ -247,20 +192,76 @@ namespace Pokemon5ePdfFiller
 				{
 					OtherNotes += $"Item: {pokemon.ExtraStringMap["item"]}";
 				}
-				PokemonDocs[PokeDocIndex].Form.GetFieldByName($"Pokemon{PokemonIndex}-other-notes").Value = OtherNotes;
-			}
+				stamper.SetField($"Pokemon{PartyIndex}-other-notes", OtherNotes);
 
-			using (IronPdf.PdfDocument PokemonSheetsDoc = IronPdf.PdfDocument.Merge(PokemonDocs))
-			{
-				PokemonSheetsDoc.SaveAs(Application.ExecutablePath + "../../../../../assets/PPokemonCopy.pdf");
 			}
-
-			foreach (IronPdf.PdfDocument PokeDoc in PokemonDocs)
-			{
-				PokeDoc.Dispose();
-			}
+			stamper.Dispose();
+			pdfReader.Dispose();
+			existingFileStream.Dispose();
+			newFileStream.Dispose();
 
 			label1.Text = "Finished Exporting";
+		}
+
+		private void FlattenCheckBox_CheckedChanged(object sender, EventArgs e)
+		{
+			Flatten = !FlattenCheckBox.Checked;
+		}
+
+		private void TemplateButton_Click(object sender, EventArgs e)
+		{
+			List<string> PokemonFileNames = new List<string>();
+			List<Pokemon> Party = PokemonUtils.DeserializeJsonPokemon(textBox1.Text);
+
+			for (int PartyIndex = 1; PartyIndex <= Party.Count; PartyIndex += 2)
+			{
+
+				int PokemonIndex = (PartyIndex % 2) + 1;
+				if (PokemonIndex == 1) { PokemonIndex = 2; }
+				else if (PokemonIndex == 2) { PokemonIndex = 1; }
+				int PokeDocIndex = (int)MathF.Ceiling((float)PartyIndex / 2.0f) - 1;
+
+				string tempFile = PokemonPdfOriginal.Insert(PokemonPdfNew.Length - 5, PokeDocIndex.ToString());
+				if (!PokemonFileNames.Contains(tempFile))
+				{
+					PokemonFileNames.Add(tempFile);
+				}
+
+				FileStream existingFileStream = new FileStream(PokemonPdfOriginal, FileMode.Open);
+				FileStream newFileStream = new FileStream(tempFile, FileMode.Create);
+				var pdfReader = new PdfReader(existingFileStream);
+				var stamper = new PdfStamper(pdfReader, newFileStream);
+
+				stamper.RenamePokemonPdfForms(PokeDocIndex);
+
+				stamper.Dispose();
+				pdfReader.Dispose();
+				existingFileStream.Dispose();
+				newFileStream.Dispose();
+
+			}
+
+			Document CompletedPokemonDoc = new Document();
+			FileStream PokeDocStream = new FileStream(PokemonPdfModified, FileMode.OpenOrCreate);
+			PdfCopy CompletedPokemonCopy = new PdfCopy(CompletedPokemonDoc, PokeDocStream);
+
+			CompletedPokemonDoc.Open();
+			foreach (string PokeFileName in PokemonFileNames)
+			{
+				PdfReader reader = new PdfReader(PokeFileName);
+				reader.ConsolidateNamedDestinations();
+
+				PdfImportedPage Page = CompletedPokemonCopy.GetImportedPage(reader, 1);
+				CompletedPokemonCopy.AddPage(Page);
+
+				reader.Dispose();
+			}
+
+			CompletedPokemonCopy.Dispose();
+			PokeDocStream.Dispose();
+			CompletedPokemonDoc.Dispose();
+			
+			label1.Text = "Template Created";
 		}
 	}
 }

@@ -35,6 +35,8 @@
 			openFileDialog1 = new OpenFileDialog();
 			label1 = new Label();
 			tableLayoutPanel1 = new TableLayoutPanel();
+			FlattenCheckBox = new CheckBox();
+			TemplateButton = new Button();
 			tableLayoutPanel1.SuspendLayout();
 			SuspendLayout();
 			// 
@@ -87,7 +89,6 @@
 			label1.Name = "label1";
 			label1.Size = new Size(194, 50);
 			label1.TabIndex = 6;
-			label1.Text = "\"\"";
 			label1.TextAlign = ContentAlignment.MiddleCenter;
 			// 
 			// tableLayoutPanel1
@@ -105,9 +106,35 @@
 			tableLayoutPanel1.Size = new Size(200, 100);
 			tableLayoutPanel1.TabIndex = 7;
 			// 
+			// FlattenCheckBox
+			// 
+			FlattenCheckBox.Anchor = AnchorStyles.Bottom;
+			FlattenCheckBox.AutoSize = true;
+			FlattenCheckBox.Checked = true;
+			FlattenCheckBox.CheckState = CheckState.Checked;
+			FlattenCheckBox.Location = new Point(402, 363);
+			FlattenCheckBox.Name = "FlattenCheckBox";
+			FlattenCheckBox.Size = new Size(132, 19);
+			FlattenCheckBox.TabIndex = 8;
+			FlattenCheckBox.Text = "Leave fields editable";
+			FlattenCheckBox.UseVisualStyleBackColor = true;
+			FlattenCheckBox.CheckedChanged += FlattenCheckBox_CheckedChanged;
+			// 
+			// TemplateButton
+			// 
+			TemplateButton.Location = new Point(1, 1);
+			TemplateButton.Name = "TemplateButton";
+			TemplateButton.Size = new Size(183, 63);
+			TemplateButton.TabIndex = 9;
+			TemplateButton.Text = "CreatePokemonPdfTemplate";
+			TemplateButton.UseVisualStyleBackColor = true;
+			TemplateButton.Click += TemplateButton_Click;
+			// 
 			// Pokemon5ePDFFiller
 			// 
 			ClientSize = new Size(922, 529);
+			Controls.Add(TemplateButton);
+			Controls.Add(FlattenCheckBox);
 			Controls.Add(tableLayoutPanel1);
 			Controls.Add(BrowseButton);
 			Controls.Add(textBox1);
@@ -127,5 +154,8 @@
 		private OpenFileDialog openFileDialog1;
 		private Label label1;
 		private TableLayoutPanel tableLayoutPanel1;
+		private CheckBox FlattenCheckBox;
+		private Button button2;
+		private Button TemplateButton;
 	}
 }
