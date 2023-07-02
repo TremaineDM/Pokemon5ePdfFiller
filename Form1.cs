@@ -1,5 +1,6 @@
 ﻿using IronPdf.Forms;
 using iTextSharp.text.pdf;
+using System.DirectoryServices.ActiveDirectory;
 using System.IO;
 using System.Runtime;
 using System.Text;
@@ -9,9 +10,11 @@ namespace Pokemon5ePdfFiller
 	public partial class Pokemon5ePDFFiller : Form
 	{
 		public readonly string SaveFileName = "Pokemon5ePdfFiller.txt";
-		public readonly string PokemonPdfOriginal = Application.ExecutablePath + "../../../../../assets/Pokemon_5e_Pokemon_Sheet.pdf";
-		public readonly string TrainerPdfOriginal = Application.ExecutablePath + "../../../../../assets/Pokemon_5e_Sheet.pdf";
+		public readonly string PokemonPdfOriginal = $"{Application.ExecutablePath}../../../../../assets/Pokemon_5e_Pokemon_Sheet.pdf";
+		public readonly string TrainerPdfOriginal = $"{Application.ExecutablePath}../../../../../assets/Pokemon_5e_Sheet.pdf";
 
+		public readonly string PokemonPdfNew = $"{Application.ExecutablePath}../../../../../assets/PPokemonCopy.pdf";
+		public readonly string TrainerPdfNew = $"{Application.ExecutablePath}../../../../../assets/PTrainerCopy.pdf";
 
 		public Pokemon5ePDFFiller()
 		{
@@ -60,6 +63,9 @@ namespace Pokemon5ePdfFiller
 			label1.Text = "Exporting...";
 			label1.Refresh();
 
+			PdfUtils.PopulateTrainerFields();
+			PdfUtils.PopulatePokemonFields();
+
 			//using (PdfDocument TrainerDoc = PdfDocument.FromFile(TrainerPdfOriginal))
 			//{
 			//	if (TrainerDoc == null)
@@ -83,36 +89,37 @@ namespace Pokemon5ePdfFiller
 			//	TrainerDoc.SaveAs(Application.ExecutablePath + "../../../../../assets/PTrainerCopy.pdf");
 			//	TrainerDoc.Dispose();
 			//}
-			using (var existingFileStream = new FileStream(TrainerPdfOriginal, FileMode.Open))
-			using (var newFileStream = new FileStream(Application.ExecutablePath + "../../../../../assets/PTrainerCopy.pdf", FileMode.Create))
+			using (FileStream existingFileStream = new FileStream(TrainerPdfOriginal, FileMode.Open))
+			using (FileStream newFileStream = new FileStream(TrainerPdfNew, FileMode.Create))
 			{
 				// Open existing PDF
 				var pdfReader = new PdfReader(existingFileStream);
 
 				// PdfStamper, which will create
 				var stamper = new PdfStamper(pdfReader, newFileStream);
-
+				
 				AcroFields TrainerForm = stamper.AcroFields;
 
+				stamper.FormFlattening = true;
 				for (int PartyIndex = 1; PartyIndex <= Party.Count; PartyIndex++)
 				{
 					Pokemon pokemon = Party[PartyIndex - 1];
 
-					TrainerForm.SetField($"Trainer-Pokemon-Name-{PartyIndex}", pokemon.StringMap["name"]);
-					stamper.PartialFormFlattening($"Trainer-Pokemon-Name-{PartyIndex}");
-					TrainerForm.SetField($"Trainer-Pokemon-Level-{PartyIndex}", pokemon.StringMap["level"]);
-					stamper.PartialFormFlattening($"Trainer-Pokemon-Level-{PartyIndex}");
-					TrainerForm.SetField($"Trainer-Pokemon-Current-hp-{PartyIndex}", pokemon.GetCurrentHpString());
-					stamper.PartialFormFlattening($"Trainer-Pokemon-Current-hp-{PartyIndex}");
-					TrainerForm.SetField($"Trainer-Pokemon-Max-hp-{PartyIndex}", pokemon.Hp.Max_hp.ToString());
-					stamper.PartialFormFlattening($"Trainer-Pokemon-Max-hp-{PartyIndex}");
+					TrainerForm.SetField(PdfUtils.GetTrainerField($"Trainer-Pokemon-name-{PartyIndex}"), pokemon.StringMap["name"]);
+					TrainerForm.SetField(PdfUtils.GetTrainerField($"Trainer-Pokemon-level-{PartyIndex}"), pokemon.StringMap["level"]);
+					TrainerForm.SetField(PdfUtils.GetTrainerField($"Trainer-Pokemon-Current-hp-{PartyIndex}"), pokemon.GetCurrentHpString());
+					TrainerForm.SetField(PdfUtils.GetTrainerField($"Trainer-Pokemon-Max-hp-{PartyIndex}"), pokemon.Hp.Max_hp.ToString());
+					stamper.PartialFormFlattening(PdfUtils.GetTrainerField($"Trainer-Pokemon-name-{PartyIndex}"));
+					stamper.PartialFormFlattening(PdfUtils.GetTrainerField($"Trainer-Pokemon-level-{PartyIndex}"));
+					stamper.PartialFormFlattening(PdfUtils.GetTrainerField($"Trainer-Pokemon-Current-hp-{PartyIndex}"));
+					stamper.PartialFormFlattening(PdfUtils.GetTrainerField($"Trainer-Pokemon-Max-hp-{PartyIndex}"));
 				}
 
 				// You can also specify fields to be flattened, which
 				// leaves the rest of the form still be editable/usable
 
-				stamper.Close();
-				pdfReader.Close();
+				stamper.Dispose();
+				pdfReader.Dispose();
 			}
 
 			GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
@@ -131,7 +138,6 @@ namespace Pokemon5ePdfFiller
 			System.GC.Collect(2, GCCollectionMode.Forced, true, true);
 
 
-			return;
 			IronPdf.PdfDocument[] PokemonDocs = new IronPdf.PdfDocument[3];
 			using (IronPdf.PdfDocument PokemonDocOriginal = IronPdf.PdfDocument.FromFile(PokemonPdfOriginal))
 			{
@@ -144,12 +150,6 @@ namespace Pokemon5ePdfFiller
 				PokemonDocs[0] = new IronPdf.PdfDocument(PokemonPdfOriginal);
 				PokemonDocs[1] = new IronPdf.PdfDocument(PokemonPdfOriginal);
 				PokemonDocs[2] = new IronPdf.PdfDocument(PokemonPdfOriginal);
-			}
-
-			for (int i = 0; i < PokemonDocs.Length; i++)
-			{
-				PdfForm form = PokemonDocs[i].Form;
-				PdfUtils.RenamePokemonFields(ref form);
 			}
 
 			for (int PartyIndex = 1; PartyIndex <= Party.Count; PartyIndex++)
