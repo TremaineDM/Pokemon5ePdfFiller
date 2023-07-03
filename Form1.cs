@@ -11,12 +11,12 @@ namespace Pokemon5ePdfFiller
 	public partial class Pokemon5ePDFFiller : Form
 	{
 		public readonly string SaveFileName = "Pokemon5ePdfFiller.txt";
-		public readonly string PokemonPdfOriginal = $"{Application.ExecutablePath}../../../../../assets/Pokemon_5e_Pokemon_Sheet.pdf";
-		public readonly string PokemonPdfModified = $"{Application.ExecutablePath}../../../../../assets/Pokemon_6_Pokemon_Sheet.pdf";
-		public readonly string TrainerPdfOriginal = $"{Application.ExecutablePath}../../../../../assets/Pokemon_5e_Sheet.pdf";
+		public readonly string PokemonPdfOriginal = $"{Path.GetDirectoryName(Application.ExecutablePath)}/../../../assets/Pokemon_5e_Pokemon_Sheet.pdf";
+		public readonly string PokemonPdfModified = $"{Path.GetDirectoryName(Application.ExecutablePath)}/../../../assets/Pokemon_6_Pokemon_Sheet.pdf";
+		public readonly string TrainerPdfOriginal = $"{Path.GetDirectoryName(Application.ExecutablePath)}/../../../assets/Pokemon_5e_Sheet.pdf";
 
-		public readonly string PokemonPdfNew = $"{Application.ExecutablePath}../../../../../exports/Pokemon_5e_Pokemon_Sheet.pdf";
-		public readonly string TrainerPdfNew = $"{Application.ExecutablePath}../../../../../exports/Pokemon_5e_Sheet.pdf";
+		public readonly string PokemonPdfNew = $"{Path.GetDirectoryName(Application.ExecutablePath)}/../../../exports/Pokemon_5e_Pokemon_Sheet.pdf";
+		public readonly string TrainerPdfNew = $"{Path.GetDirectoryName(Application.ExecutablePath)}/../../../exports/Pokemon_5e_Sheet.pdf";
 
 		public static bool Flatten;
 
@@ -74,8 +74,8 @@ namespace Pokemon5ePdfFiller
 			PdfUtils.PopulateTrainerFields();
 			PdfUtils.PopulatePokemonFields();
 
-			using (FileStream existingTrainerFileStream = new FileStream(TrainerPdfOriginal, FileMode.Open))
-			using (FileStream newTrainerFileStream = new FileStream(TrainerPdfNew, FileMode.Create))
+			FileStream existingTrainerFileStream = new FileStream(TrainerPdfOriginal, FileMode.Open);
+			FileStream newTrainerFileStream = new FileStream(TrainerPdfNew, FileMode.Create);
 			{
 				var TrainerReader = new PdfReader(existingTrainerFileStream);
 				var TrainerStamper = new PdfStamper(TrainerReader, newTrainerFileStream);
@@ -93,6 +93,8 @@ namespace Pokemon5ePdfFiller
 				TrainerStamper.Dispose();
 				TrainerReader.Dispose();
 			}
+			newTrainerFileStream.Dispose();
+			existingTrainerFileStream.Dispose();
 
 			FileStream existingFileStream = new FileStream(PokemonPdfModified, FileMode.Open);
 			FileStream newFileStream = new FileStream(PokemonPdfNew, FileMode.Create);
@@ -193,6 +195,11 @@ namespace Pokemon5ePdfFiller
 					OtherNotes += $"Item: {pokemon.ExtraStringMap["item"]}";
 				}
 				stamper.SetField($"Pokemon{PartyIndex}-other-notes", OtherNotes);
+
+				//int PokemonIndex = (PartyIndex % 2) + 1;
+				//if (PokemonIndex == 1) { PokemonIndex = 2; }
+				//else if (PokemonIndex == 2) { PokemonIndex = 1; }
+				//int PokeDocIndex = (int)MathF.Ceiling((float)PartyIndex / 2.0f) - 1;
 
 			}
 			stamper.Dispose();
