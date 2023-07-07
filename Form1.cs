@@ -1,6 +1,8 @@
 ﻿using iText.Forms;
 using iText.IO.Font;
+using iText.IO.Image;
 using iText.Kernel.Pdf;
+using iText.Layout;
 using iText.Licensing.Base;
 using System.Diagnostics;
 using System.DirectoryServices.ActiveDirectory;
@@ -13,9 +15,12 @@ namespace Pokemon5ePdfFiller
 	public partial class Pokemon5ePDFFiller : Form
 	{
 		public readonly string SaveFileName = "Pokemon5ePdfFiller.txt";
+		public readonly string AppPath = $"{Path.GetDirectoryName(Application.ExecutablePath)}";
 		public readonly string PokemonPdfOriginal = $"{Path.GetDirectoryName(Application.ExecutablePath)}\\..\\..\\..\\assets\\Pokemon_5e_Pokemon_Sheet.pdf";
 		public readonly string PokemonPdfModified = $"{Path.GetDirectoryName(Application.ExecutablePath)}\\..\\..\\..\\assets\\Pokemon_6_Pokemon_Sheet.pdf";
 		public readonly string TrainerPdfOriginal = $"{Path.GetDirectoryName(Application.ExecutablePath)}\\..\\..\\..\\assets\\Pokemon_5e_Sheet.pdf";
+
+		public readonly string PokemonTexturePath = $"{Path.GetDirectoryName(Application.ExecutablePath)}\\..\\..\\..\\assets\\Pokemon\\";
 
 		public readonly string PokemonPdfNew = $"{Path.GetDirectoryName(Application.ExecutablePath)}\\..\\..\\..\\exports\\Pokemon_5e_Pokemon_Sheet.pdf";
 		public readonly string TrainerPdfNew = $"{Path.GetDirectoryName(Application.ExecutablePath)}\\..\\..\\..\\exports\\Pokemon_5e_Sheet.pdf";
@@ -112,12 +117,15 @@ namespace Pokemon5ePdfFiller
 				using PdfWriter PokemonWriter = new PdfWriter(PokemonPdfNew);
 				using PdfDocument OriginalPokemonDoc = new PdfDocument(PokemonReader);
 				using PdfDocument NewPokemonDoc = new PdfDocument(PokemonWriter);
+				using Document PokeDoc = new Document(NewPokemonDoc);
 
 				PdfPageFormCopier PokemonFormCopier = new PdfPageFormCopier();
 
 				OriginalPokemonDoc.CopyPagesTo(1, OriginalPokemonDoc.GetNumberOfPages(), NewPokemonDoc, PokemonFormCopier);
 				PdfAcroForm PokemonForm = PdfAcroForm.GetAcroForm(NewPokemonDoc, false);
 				PokemonForm.SetGenerateAppearance(true);
+
+
 
 				for (int PartyIndex = 1; PartyIndex <= Party.Count; PartyIndex++)
 				{
@@ -215,11 +223,22 @@ namespace Pokemon5ePdfFiller
 					}
 					PokemonForm.SetField($"Pokemon{PartyIndex}-other-notes", OtherNotes);
 
-					//int PokemonIndex = (PartyIndex % 2) + 1;
-					//if (PokemonIndex == 1) { PokemonIndex = 2; }
-					//else if (PokemonIndex == 2) { PokemonIndex = 1; }
-					//int PokeDocIndex = (int)MathF.Ceiling((float)PartyIndex / 2.0f) - 1;
+					int PokemonIndex = (PartyIndex % 2) + 1;
+					if (PokemonIndex == 1) { PokemonIndex = 2; }
+					else if (PokemonIndex == 2) { PokemonIndex = 1; }
+					PokemonIndex--;
+					
+					int PokeDocIndex = (int)MathF.Ceiling((float)PartyIndex / 2.0f);
 
+					string ImagePath = $"{PokemonTexturePath}{pokemon.ExtraStringMap["sprite"]}";
+					ImageData PokemonTexture = ImageDataFactory.Create(ImagePath);
+					iText.Layout.Element.Image PokemonImage = new iText.Layout.Element.Image(PokemonTexture);
+
+					float ScaleRatio = 0.8f;
+					PokemonImage.SetFixedPosition(PokemonIndex * 300 + 40, 290);
+					PokemonImage.Scale(ScaleRatio, ScaleRatio);
+					PokemonImage.SetPageNumber(PokeDocIndex);
+					PokeDoc.Add(PokemonImage);
 				}
 				if(Flatten) PokemonForm.FlattenFields();
 			}
